@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pariGINI — Find the fairest place to meet in Paris</title>
+  <meta name="description" content="pariGINI finds the fairest place to meet. Not just the fastest — the most equitable. Pick a category, enter everyone's address, and let the math decide." />
+  <meta property="og:title" content="pariGINI" />
+  <meta property="og:description" content="Find the fairest place to meet in Paris. Powered by the Gini index." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>Ⓜ️</text></svg>" />
+
+  <style>
+    /* ── Reset & tokens ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --accent: #B0001A;
+      --accent-light: rgba(176,0,26,.08);
+      --accent-mid:   rgba(176,0,26,.18);
+      --metro-blue: #1d3f86;
+      --text:    #111;
+      --text-secondary: rgba(17,17,17,.55);
+      --card-bg: rgba(255,255,255,.72);
+      --card-stroke: rgba(255,255,255,.55);
+      --card-shadow: 0 12px 36px rgba(0,0,0,.11);
+      --bg-gradient: linear-gradient(135deg, #fff 0%, rgba(176,0,26,.05) 50%, #fcf2ec 100%);
+      --radius-card: 28px;
+      --radius-pill: 999px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg-gradient);
+      background-attachment: fixed;
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── Utility ─────────────────────────────────────────────────── */
+    .container { max-width: 680px; margin: 0 auto; padding: 0 20px; }
+    .accent { color: var(--accent); }
+    .secondary { color: var(--text-secondary); }
+
+    .card {
+      background: rgba(255,255,255,.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-stroke);
+      border-radius: var(--radius-card);
+      box-shadow: var(--card-shadow);
+      padding: 24px;
+    }
+
+    .pill-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      padding: 14px 28px;
+      border-radius: var(--radius-pill);
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 8px 24px rgba(176,0,26,.30);
+      transition: transform .15s, box-shadow .15s;
+    }
+    .pill-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(176,0,26,.36); }
+    .pill-btn:active { transform: translateY(0); }
+
+    .pill-btn.ghost {
+      background: rgba(255,255,255,.72);
+      color: var(--text-secondary);
+      box-shadow: 0 4px 16px rgba(0,0,0,.07);
+      border: 1px solid rgba(0,0,0,.08);
+    }
+
+    /* ── Nav ─────────────────────────────────────────────────────── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,.78);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(0,0,0,.07);
+    }
+    .nav-inner {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 14px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      font-size: 1.25rem;
+      font-weight: 900;
+      letter-spacing: -.5px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .nav-logo span { color: var(--accent); }
+    .nav-cta { font-size: .875rem; padding: 10px 20px; }
+
+    /* ── Hero ─────────────────────────────────────────────────────── */
+    .hero {
+      padding: 64px 20px 48px;
+      max-width: 1080px;
+      margin: 0 auto;
+      text-align: left;
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 40px;
+      align-items: center;
+    }
+    @media (min-width: 820px) {
+      .hero-grid {
+        grid-template-columns: 1.1fr .9fr;
+        gap: 56px;
+      }
+      .iphone-wrap { margin-top: 0; padding: 0; justify-content: flex-end; }
+    }
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .8rem;
+      font-weight: 600;
+      color: var(--accent);
+      background: var(--accent-light);
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      margin-bottom: 18px;
+    }
+    .hero-title {
+      font-size: clamp(2.6rem, 9vw, 3.6rem);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: -1.5px;
+      margin-bottom: 16px;
+    }
+    .hero-sub {
+      font-size: 1.15rem;
+      line-height: 1.55;
+      color: var(--text-secondary);
+      margin-bottom: 32px;
+      max-width: 520px;
+    }
+    .hero-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 48px;
+    }
+
+    /* ── Phone screenshot (frame baked into image) ─────────────── */
+    .iphone-wrap {
+      display: flex;
+      justify-content: center;
+      margin-top: 8px;
+      padding: 16px 0 8px;
+    }
+    .iphone-wrap img {
+      width: 280px;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 30px 60px rgba(0,0,0,.28)) drop-shadow(0 12px 24px rgba(0,0,0,.18));
+    }
+
+    /* Cross-fade carousel for the "how it works" phone */
+    .phone-carousel {
+      position: relative;
+      width: 280px;
+      max-width: 100%;
+      aspect-ratio: 1186 / 2422;
+    }
+    .phone-carousel img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      opacity: 0;
+      transition: opacity 900ms cubic-bezier(.4,0,.2,1);
+      filter: drop-shadow(0 30px 60px rgba(0,0,0,.28)) drop-shadow(0 12px 24px rgba(0,0,0,.18));
+      will-change: opacity;
+    }
+    .phone-carousel img.is-active {
+      opacity: 1;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .phone-carousel img {
+        transition: opacity 300ms linear;
+      }
+    }
+
+    /* ── Urban animation (legacy, hidden) ─────────────────────── */
+    .urban-animation {
+      width: 100%;
+      height: 200px;
+      position: relative;
+      border-radius: var(--radius-card);
+      overflow: hidden;
+      background: rgba(255,255,255,.55);
+      border: 1px solid var(--card-stroke);
+      box-shadow: var(--card-shadow);
+    }
+    .urban-animation svg { width: 100%; height: 100%; }
+
+    .anim-line { stroke-dasharray: 300; stroke-dashoffset: 300; animation: draw 1.2s ease forwards; }
+    .anim-line:nth-child(1) { animation-delay: .1s; }
+    .anim-line:nth-child(2) { animation-delay: .22s; }
+    .anim-line:nth-child(3) { animation-delay: .34s; }
+    .anim-line:nth-child(4) { animation-delay: .46s; }
+    .anim-line:nth-child(5) { animation-delay: .58s; }
+
+    .anim-node { opacity: 0; transform-origin: center; animation: popIn .4s cubic-bezier(.34,1.56,.64,1) forwards; }
+    .anim-node:nth-child(6)  { animation-delay: .15s; }
+    .anim-node:nth-child(7)  { animation-delay: .27s; }
+    .anim-node:nth-child(8)  { animation-delay: .39s; }
+    .anim-node:nth-child(9)  { animation-delay: .51s; }
+    .anim-node:nth-child(10) { animation-delay: .63s; }
+
+    .anim-center { opacity: 0; transform-origin: center; animation: popIn .5s cubic-bezier(.34,1.56,.64,1) .2s forwards; }
+    .center-pulse { animation: pulse 1.8s ease-in-out 1.2s infinite; transform-origin: center; }
+
+    .anim-label { opacity: 0; animation: fadeUp .4s ease .85s forwards; }
+
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    @keyframes popIn { to { opacity: 1; transform: scale(1); } }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: .5; }
+      50% { transform: scale(1.3); opacity: .18; }
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── How it works ─────────────────────────────────────────────── */
+    /* ── How it works ───────────────────────────────────────── */
+    .how-section { max-width: 1080px; }
+    .how-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 40px;
+      align-items: center;
+    }
+    @media (min-width: 820px) {
+      .how-grid {
+        grid-template-columns: 1.1fr .9fr;
+        gap: 56px;
+      }
+    }
+
+    .section { padding: 56px 20px; max-width: 680px; margin: 0 auto; }
+    .section-eyebrow {
+      font-size: .75rem;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .section-title {
+      font-size: clamp(1.6rem, 5vw, 2rem);
+      font-weight: 800;
+      letter-spacing: -.5px;
+      line-height: 1.2;
+      margin-bottom: 28px;
+    }
+
+    .steps { display: flex; flex-direction: column; gap: 16px; }
+    .step-card {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+    }
+    .step-num {
+      flex-shrink: 0;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 800;
+      font-size: .85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 2px;
+      box-shadow: 0 4px 12px rgba(176,0,26,.25);
+    }
+    .step-body h3 { font-size: 1rem; font-weight: 700; margin-bottom: 4px; }
+    .step-body p  { font-size: .9rem; line-height: 1.55; color: var(--text-secondary); }
+
+    /* ── Categories ───────────────────────────────────────────────── */
+    .categories-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+    .cat-chip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 14px 10px;
+      background: rgba(255,255,255,.78);
+      border: 1px solid rgba(0,0,0,.07);
+      border-radius: 18px;
+      font-size: .85rem;
+      font-weight: 600;
+      cursor: default;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .cat-chip:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,.09); }
+    .cat-chip .emoji { font-size: 1.5rem; }
+
+    /* ── Screenshots ──────────────────────────────────────────────── */
+    .screenshots-scroll {
+      display: flex;
+      gap: 16px;
+      overflow-x: auto;
+      padding: 8px 4px 16px;
+      -webkit-overflow-scrolling: touch;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+    }
+    .screenshots-scroll::-webkit-scrollbar { display: none; }
+
+    .screenshot-frame {
+      flex: 0 0 auto;
+      scroll-snap-align: start;
+      width: 220px;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: 0 16px 40px rgba(0,0,0,.14);
+      border: 1px solid rgba(0,0,0,.06);
+      background: #f0f0f0;
+    }
+    .screenshot-frame img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    .screenshot-caption {
+      padding: 10px 12px;
+      font-size: .78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: rgba(255,255,255,.88);
+      text-align: center;
+    }
+
+    /* ── Gini math ────────────────────────────────────────────────── */
+    .formula-box {
+      font-family: inherit;
+      font-style: italic;
+      font-size: 1rem;
+      font-weight: 500;
+      text-align: center;
+      padding: 18px 20px;
+      background: rgba(255,255,255,.78);
+      border-radius: 18px;
+      border: 1px solid rgba(0,0,0,.07);
+      margin: 20px 0;
+      line-height: 1.6;
+    }
+    .gini-bar-demo {
+      height: 10px;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(to right, #238a4f, #f5b436, #c72c41);
+      position: relative;
+      margin: 20px 0 8px;
+    }
+    .gini-bar-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: .72rem;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .fairness-chip {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      font-size: .8rem;
+      font-weight: 700;
+    }
+    .fairness-high   { background: #d4f0e0; color: #1a6b3a; }
+    .fairness-medium { background: #fef3cc; color: #7a5a00; }
+    .fairness-low    { background: #fce0e3; color: #8a001a; }
+
+    /* ── Story ────────────────────────────────────────────────────── */
+    .story-text { font-size: .95rem; line-height: 1.72; color: var(--text); }
+    .story-text p + p { margin-top: 14px; }
+
+    /* ── Online room ──────────────────────────────────────────────── */
+    .room-card {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .room-card h3 { font-size: 1rem; font-weight: 700; }
+    .room-card p  { font-size: .9rem; color: var(--text-secondary); line-height: 1.55; }
+
+    /* ── Download ─────────────────────────────────────────────────── */
+    .download-section {
+      text-align: center;
+      padding: 56px 20px;
+    }
+    .download-section .section-title { margin-bottom: 12px; }
+    .download-section .section-sub   { font-size: 1rem; color: var(--text-secondary); margin-bottom: 28px; }
+    .store-badges { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+
+    .badge-appstore {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: #000;
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: 14px;
+      text-decoration: none;
+      font-size: .9rem;
+      font-weight: 600;
+      transition: opacity .15s;
+    }
+    .badge-appstore:hover { opacity: .85; }
+    .badge-appstore svg { width: 22px; height: 22px; fill: #fff; flex-shrink: 0; }
+    .badge-appstore .badge-label { display: flex; flex-direction: column; line-height: 1.2; }
+    .badge-appstore .badge-label small { font-size: .65rem; font-weight: 400; opacity: .8; }
+
+    .badge-soon {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(255,255,255,.72);
+      color: var(--text-secondary);
+      padding: 12px 22px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.08);
+      font-size: .9rem;
+      font-weight: 600;
+    }
+    .badge-soon svg { width: 22px; height: 22px; fill: var(--text-secondary); flex-shrink: 0; }
+
+    /* ── Privacy ──────────────────────────────────────────────────── */
+    #privacy {
+      padding: 56px 20px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .privacy-body h3 {
+      font-size: .95rem;
+      font-weight: 700;
+      margin: 22px 0 6px;
+      color: var(--text);
+    }
+    .privacy-body p, .privacy-body li {
+      font-size: .875rem;
+      line-height: 1.7;
+      color: var(--text-secondary);
+    }
+    .privacy-body ul { padding-left: 20px; margin: 8px 0; }
+    .privacy-body ul li { margin-bottom: 4px; }
+    .privacy-body a { color: var(--accent); text-decoration: none; }
+    .privacy-body a:hover { text-decoration: underline; }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid rgba(0,0,0,.07);
+      padding: 32px 20px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .footer-inner {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .footer-logo { font-size: 1.1rem; font-weight: 900; color: var(--text); text-decoration: none; }
+    .footer-logo span { color: var(--accent); }
+    .footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
+    .footer-links a {
+      font-size: .82rem;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .footer-links a:hover { color: var(--accent); }
+    .footer-copy {
+      width: 100%;
+      font-size: .75rem;
+      color: var(--text-secondary);
+      margin-top: 8px;
+    }
+
+    /* ── Misc ─────────────────────────────────────────────────────── */
+    .divider {
+      width: 100%;
+      height: 1px;
+      background: rgba(0,0,0,.07);
+      margin: 0 20px;
+      max-width: calc(680px - 40px);
+    }
+    .divider-wrapper { display: flex; justify-content: center; }
+
+    @media (min-width: 480px) {
+      .hero-title { font-size: 3.6rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Nav ──────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <a class="nav-logo" href="#">pari<span>GINI</span></a>
+    <a class="pill-btn nav-cta" href="#download">Download</a>
+  </div>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────────────────── -->
+<header>
+  <div class="hero">
+   <div class="hero-grid">
+    <div class="hero-text">
+    <div class="hero-tag">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+      Paris · iOS
+    </div>
+
+    <h1 class="hero-title">
+      pari<span class="accent">GINI</span>
+    </h1>
+
+    <p class="hero-sub">
+      Cities are meant to be shared. Find the spot with the shortest ride
+      for you and all your friends.
+    </p>
+
+    <div class="hero-btns">
+      <a class="badge-appstore" href="#download" aria-label="Download on the App Store">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        <div class="badge-label">
+          <small>Download on the</small>
+          App Store
+        </div>
+      </a>
+    </div>
+
+    </div><!-- /.hero-text -->
+
+    <!-- App screenshot (iPhone frame is part of the image) -->
+    <div class="iphone-wrap" aria-hidden="true">
+      <img src="screenshot_giniview.png" alt="pariGINI app — main view" />
+    </div>
+   </div><!-- /.hero-grid -->
+
+    <!-- (legacy animated illustration removed) -->
+    <div style="display:none" aria-hidden="true">
+      <svg viewBox="0 0 360 200" xmlns="http://www.w3.org/2000/svg">
+        <!-- City grid (faint) -->
+        <line x1="50"  y1="0" x2="50"  y2="200" stroke="rgba(0,0,0,.05)" stroke-width="1"/>
+        <line x1="105" y1="0" x2="105" y2="200" stroke="rgba(0,0,0,.05)" stroke-width="1"/>
+        <line x1="170" y1="0" x2="170" y2="200" stroke="rgba(0,0,0,.05)" stroke-width="1"/>
+        <line x1="238" y1="0" x2="238" y2="200" stroke="rgba(0,0,0,.05)" stroke-width="1"/>
+        <line x1="296" y1="0" x2="296" y2="200" stroke="rgba(0,0,0,.05)" stroke-width="1"/>
+        <line x1="0" y1="50"  x2="360" y2="50"  stroke="rgba(0,0,0,.05)" stroke-width="1"/>
+        <line x1="0" y1="100" x2="360" y2="100" stroke="rgba(0,0,0,.05)" stroke-width="1"/>
+        <line x1="0" y1="148" x2="360" y2="148" stroke="rgba(0,0,0,.05)" stroke-width="1"/>
+
+        <!-- Connection lines from friends to center -->
+        <path class="anim-line" d="M65,52 C155,52 155,100 188,100"   stroke="url(#lg1)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path class="anim-line" d="M292,44 C240,44 240,100 188,100"  stroke="url(#lg2)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path class="anim-line" d="M86,152 C137,152 137,100 188,100" stroke="url(#lg3)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path class="anim-line" d="M263,144 C225,144 225,100 188,100" stroke="url(#lg4)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+        <path class="anim-line" d="M170,28 C179,28 179,64 188,100"   stroke="url(#lg5)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+
+        <!-- Gradients -->
+        <defs>
+          <linearGradient id="lg1" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4070c4" stop-opacity=".45"/><stop offset="100%" stop-color="#B0001A" stop-opacity=".65"/></linearGradient>
+          <linearGradient id="lg2" x1="100%" y1="0%" x2="0%" y2="0%"><stop offset="0%" stop-color="#4070c4" stop-opacity=".45"/><stop offset="100%" stop-color="#B0001A" stop-opacity=".65"/></linearGradient>
+          <linearGradient id="lg3" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#4070c4" stop-opacity=".45"/><stop offset="100%" stop-color="#B0001A" stop-opacity=".65"/></linearGradient>
+          <linearGradient id="lg4" x1="100%" y1="0%" x2="0%" y2="0%"><stop offset="0%" stop-color="#4070c4" stop-opacity=".45"/><stop offset="100%" stop-color="#B0001A" stop-opacity=".65"/></linearGradient>
+          <linearGradient id="lg5" x1="0%" y1="100%" x2="0%" y2="0%"><stop offset="0%" stop-color="#B0001A" stop-opacity=".65"/><stop offset="100%" stop-color="#4070c4" stop-opacity=".45"/></linearGradient>
+        </defs>
+
+        <!-- Friend nodes -->
+        <g class="anim-node" style="transform:scale(0)">
+          <circle cx="65" cy="52" r="14" fill="#4070c4" fill-opacity=".18"/>
+          <circle cx="65" cy="52" r="9"  fill="#4070c4"/>
+          <text x="65" y="56" text-anchor="middle" fill="white" font-size="9" font-weight="bold">👤</text>
+        </g>
+        <g class="anim-node" style="transform:scale(0)">
+          <circle cx="292" cy="44" r="14" fill="#4070c4" fill-opacity=".18"/>
+          <circle cx="292" cy="44" r="9"  fill="#4070c4"/>
+          <text x="292" y="48" text-anchor="middle" fill="white" font-size="9">👤</text>
+        </g>
+        <g class="anim-node" style="transform:scale(0)">
+          <circle cx="86" cy="152" r="14" fill="#4070c4" fill-opacity=".18"/>
+          <circle cx="86" cy="152" r="9"  fill="#4070c4"/>
+          <text x="86" y="156" text-anchor="middle" fill="white" font-size="9">🏠</text>
+        </g>
+        <g class="anim-node" style="transform:scale(0)">
+          <circle cx="263" cy="144" r="14" fill="#4070c4" fill-opacity=".18"/>
+          <circle cx="263" cy="144" r="9"  fill="#4070c4"/>
+          <text x="263" y="148" text-anchor="middle" fill="white" font-size="9">👤</text>
+        </g>
+        <g class="anim-node" style="transform:scale(0)">
+          <circle cx="170" cy="28" r="14" fill="#4070c4" fill-opacity=".18"/>
+          <circle cx="170" cy="28" r="9"  fill="#4070c4"/>
+          <text x="170" y="32" text-anchor="middle" fill="white" font-size="9">👤</text>
+        </g>
+
+        <!-- Center pulsing node -->
+        <g class="anim-center" style="transform:scale(0)">
+          <circle class="center-pulse" cx="188" cy="100" r="30" fill="#B0001A" fill-opacity=".10"/>
+          <circle cx="188" cy="100" r="17" fill="#B0001A" fill-opacity=".22"/>
+          <circle cx="188" cy="100" r="9"  fill="#B0001A"/>
+        </g>
+
+        <!-- Label pill above center -->
+        <g class="anim-label">
+          <rect x="138" y="56" width="100" height="28" rx="14" fill="rgba(255,255,255,.95)" stroke="rgba(0,0,0,.07)" stroke-width="1"/>
+          <rect x="145" y="65" width="12" height="12" rx="6" fill="#1d3f86"/>
+          <text x="155" y="74.5" fill="#1d3f86" font-size="8" font-weight="600">M</text>
+          <text x="164" y="74.5" fill="#111" font-size="8.5" font-weight="600">Belleville</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<!-- ── How it works ──────────────────────────────────────────────────── -->
+<section id="how-it-works" class="section how-section">
+  <div class="how-grid">
+    <div class="how-text">
+      <p class="section-eyebrow">Simple as that</p>
+      <h2 class="section-title">Three taps to fairness.</h2>
+
+      <div class="steps">
+        <div class="card step-card">
+          <div class="step-num">1</div>
+          <div class="step-body">
+            <h3>Pick a category</h3>
+          </div>
+        </div>
+
+        <div class="card step-card">
+          <div class="step-num">2</div>
+          <div class="step-body">
+            <h3>Add everyone's starting address</h3>
+          </div>
+        </div>
+
+        <div class="card step-card">
+          <div class="step-num">3</div>
+          <div class="step-body">
+            <h3>pariGINI does the rest</h3>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="iphone-wrap" aria-hidden="true">
+      <div class="phone-carousel" id="phone-carousel">
+        <img src="screenshot_mappa_parchi.png" alt="pariGINI — parks map view" class="is-active" />
+        <img src="screenshot_mappa_cinema.png" alt="pariGINI — cinema map view" />
+        <img src="screenshot_mappa_metro.png" alt="pariGINI — metro map view" />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Categories ───────────────────────────────────────────────────── -->
+<div class="divider-wrapper"><div class="divider"></div></div>
+<section class="section">
+  <p class="section-eyebrow">What are you looking for?</p>
+  <h2 class="section-title">Seven categories, and many more on the way.</h2>
+
+  <div class="categories-grid">
+    <div class="cat-chip"><span class="emoji">Ⓜ️</span> Metro</div>
+    <div class="cat-chip"><span class="emoji">🍿</span> Cinema</div>
+    <div class="cat-chip"><span class="emoji">🌳</span> Parks</div>
+    <div class="cat-chip"><span class="emoji">🍻</span> Bars</div>
+    <div class="cat-chip"><span class="emoji">🏛️</span> Museums</div>
+    <div class="cat-chip"><span class="emoji">📚</span> Libraries</div>
+    <div class="cat-chip"><span class="emoji">🪩</span> Clubs</div>
+    <div class="cat-chip"><span class="emoji">📌</span> Saved places</div>
+  </div>
+</section>
+
+<!-- ── Screenshots — removed ─────────────────────────────────────────── -->
+
+<!-- ── The math ──────────────────────────────────────────────────────── -->
+<div class="divider-wrapper"><div class="divider"></div></div>
+<section class="section" id="the-math">
+  <p class="section-eyebrow">The name is a hint</p>
+  <h2 class="section-title">Stolen straight from economics.</h2>
+
+  <div class="card" style="margin-bottom:16px;">
+    <p class="story-text" style="margin-bottom:16px;">
+      The <strong>Gini coefficient</strong> was invented by Italian statistician Corrado Gini in 1912
+      to measure income inequality within a society. A score of 0 means perfect equality —
+      everyone earns the same. A score of 1 means one person holds all the wealth.
+      For decades, it has been the standard tool used by economists to track the fairness
+      of income distributions across countries.
+    </p>
+    <p class="story-text">
+      pariGINI borrows the same index and applies it to <strong>travel times</strong> instead of incomes.
+      Low Gini → everyone travels roughly the same distance. High Gini → somebody is stuck with
+      a much longer commute while everyone else barely moves.
+    </p>
+
+    <div class="formula-box">
+      Fair index = mean travel time &times; (1 + Gini index)
+    </div>
+
+    <p class="story-text">
+      This formula keeps total travel time short while penalising options where one friend
+      bears a disproportionate share of the commute. It's the mathematical expression of
+      a simple idea: <em>fair means everyone matters equally.</em>
+    </p>
+  </div>
+
+  <!-- Gini bar visual -->
+  <div class="card">
+    <p style="font-size:.8rem;font-weight:700;color:var(--text-secondary);margin-bottom:10px;text-transform:uppercase;letter-spacing:.8px;">Fairness score at a glance</p>
+    <div class="gini-bar-demo"></div>
+    <div class="gini-bar-labels">
+      <span>Most fair</span>
+      <span>Least fair</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;">
+      <span class="fairness-chip fairness-high">92% — everyone wins</span>
+      <span class="fairness-chip fairness-medium">55% — decent tradeoff</span>
+      <span class="fairness-chip fairness-low">21% — someone suffers</span>
+    </div>
+  </div>
+</section>
+
+<!-- ── The story ─────────────────────────────────────────────────────── -->
+<div class="divider-wrapper"><div class="divider"></div></div>
+<section class="section" id="story">
+  <p class="section-eyebrow">Origin</p>
+  <h2 class="section-title">Born from injustice and laziness.</h2>
+
+  <div class="card">
+    <div class="story-text">
+      <p>This app and the idea behind it was born from a mix of a strong sense of injustice
+      and a healthy dose of laziness.</p>
+
+      <p>Most of our friends live in the 11th arrondissement. Except for a few.
+      And those few threatened to build a tool to shift the gravitational centre
+      of our aperitivos somewhere more accessible.</p>
+
+      <p>So here it is.</p>
+
+      <p>pariGINI finds the fairest place to meet — not just the fastest,
+      but the most equitable. It's a small invitation to move through the city
+      not as isolated individuals, but with awareness of the others who share this space.</p>
+
+      <p style="margin-top:18px;font-style:italic;color:var(--text-secondary);">
+        "Enjoy &lt;3"
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Plan online / Download / inline Privacy — removed ───────────── -->
+
+<!-- ── Privacy moved to privacy.html ─────────────────────────────── -->
+
+<!-- ── Footer ────────────────────────────────────────────────────────── -->
+<div class="divider-wrapper" style="margin-top:40px;"><div class="divider"></div></div>
+<footer>
+  <div class="footer-inner">
+    <a class="footer-logo" href="#">pari<span>GINI</span></a>
+    <div class="footer-links">
+      <a href="#how-it-works">How it works</a>
+      <a href="#the-math">The math</a>
+      <a href="#story">Story</a>
+      <a href="privacy.html">Privacy</a>
+      <a href="mailto:parigini.contact@gmail.com">Contact</a>
+    </div>
+  </div>
+  <p class="footer-copy">
+    &copy; 2026 pariGINI
+    &nbsp;&nbsp;·&nbsp;&nbsp; iOS only, for now. Android coming soon.
+  </p>
+</footer>
+
+<script>
+  // Phone carousel — Apple-style elegant cross-fade
+  (function () {
+    var root = document.getElementById('phone-carousel');
+    if (!root) return;
+    var slides = root.querySelectorAll('img');
+    if (slides.length < 2) return;
+    var i = 0;
+    var INTERVAL = 3800; // ms each slide is held
+
+    function tick() {
+      slides[i].classList.remove('is-active');
+      i = (i + 1) % slides.length;
+      slides[i].classList.add('is-active');
+    }
+
+    var timer = null;
+    function start() {
+      if (timer) return;
+      timer = setInterval(tick, INTERVAL);
+    }
+    function stop() {
+      clearInterval(timer);
+      timer = null;
+    }
+
+    // Pause when not visible & when tab is hidden — saves battery, looks alive when in view
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) start(); else stop();
+        });
+      }, { threshold: 0.25 });
+      io.observe(root);
+    } else {
+      start();
+    }
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) stop(); else start();
+    });
+  })();
+</script>
+</body>
+</html>
